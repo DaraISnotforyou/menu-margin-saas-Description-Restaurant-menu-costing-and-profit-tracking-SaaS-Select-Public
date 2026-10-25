@@ -1,0 +1,1537 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><meta name="description" content="Track restaurant ingredient costs, dish margins, and suggested selling prices.">
+<meta name="theme-color" content="#14532d">
+<meta name="application-name" content="Menu Margin">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>Menu Margin — Restaurant Costing</title>
+</head><body>
+<style>
+:root {
+  --bg: #f6f7f4;
+  --surface: #ffffff;
+  --surface-2: #f0f2ec;
+  --text: #1c211d;
+  --muted: #5b655d;
+  --line: #dfe3da;
+  --brand: #14532d;
+  --brand-ink: #ffffff;
+  --brand-soft: #e3f1e7;
+  --focus: #1d4ed8;
+
+  --loss-bg: #fde8e8; --loss-ink: #9b1c1c;
+  --below-bg: #fff0d9; --below-ink: #8a4b00;
+  --watch-bg: #fdf6c9; --watch-ink: #6b5a00;
+  --good-bg: #dcf3e3; --good-ink: #14532d;
+  --incomplete-bg: #e9ebe6; --incomplete-ink: #4a524b;
+
+  --radius: 12px;
+  --shadow: 0 1px 2px rgba(20, 30, 20, 0.06), 0 2px 8px rgba(20, 30, 20, 0.04);
+  --nav-h: 64px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101411;
+    --surface: #181d19;
+    --surface-2: #202621;
+    --text: #e8ece8;
+    --muted: #a0aaa2;
+    --line: #2c342d;
+    --brand: #4ade80;
+    --brand-ink: #06210f;
+    --brand-soft: #14291b;
+    --focus: #93c5fd;
+    --loss-bg: #3b1616; --loss-ink: #fca5a5;
+    --below-bg: #3a2810; --below-ink: #fdba74;
+    --watch-bg: #35310f; --watch-ink: #fde68a;
+    --good-bg: #123220; --good-ink: #86efac;
+    --incomplete-bg: #262c27; --incomplete-ink: #b5beb7;
+    --shadow: none;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+    --bg: #101411;
+    --surface: #181d19;
+    --surface-2: #202621;
+    --text: #e8ece8;
+    --muted: #a0aaa2;
+    --line: #2c342d;
+    --brand: #4ade80;
+    --brand-ink: #06210f;
+    --brand-soft: #14291b;
+    --focus: #93c5fd;
+    --loss-bg: #3b1616; --loss-ink: #fca5a5;
+    --below-bg: #3a2810; --below-ink: #fdba74;
+    --watch-bg: #35310f; --watch-ink: #fde68a;
+    --good-bg: #123220; --good-ink: #86efac;
+    --incomplete-bg: #262c27; --incomplete-ink: #b5beb7;
+    --shadow: none;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+h1, h2, h3 { line-height: 1.2; margin: 0; }
+h1 { font-size: 1.5rem; }
+h2 { font-size: 1.1rem; }
+p { margin: 0; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
+.boot { padding: 2rem; text-align: center; color: var(--muted); }
+.muted { color: var(--muted); }
+.small { font-size: 0.875rem; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* ---------- Layout ---------- */
+.shell { min-height: 100vh; }
+.sidebar { display: none; }
+.main {
+  padding: 1rem 1rem calc(var(--nav-h) + 1.5rem + env(safe-area-inset-bottom));
+  max-width: 980px;
+  margin: 0 auto;
+}
+.bottom-nav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  background: var(--surface); border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.nav-link {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-height: var(--nav-h); text-decoration: none; color: var(--muted); font-size: 0.75rem; font-weight: 600;
+}
+.nav-link svg { width: 22px; height: 22px; }
+.nav-link[aria-current="page"] { color: var(--brand); }
+.nav-link[aria-current="page"] .nav-label { text-decoration: underline; text-underline-offset: 3px; }
+
+@media (min-width: 900px) {
+  .shell { display: grid; grid-template-columns: 240px 1fr; }
+  .sidebar {
+    display: flex; flex-direction: column; gap: 0.25rem;
+    position: sticky; top: 0; height: 100vh; padding: 1.25rem 1rem;
+    background: var(--surface); border-right: 1px solid var(--line);
+  }
+  .bottom-nav { display: none; }
+  .main { padding: 2rem 2rem 3rem; width: 100%; }
+  .sidebar .nav-link {
+    flex-direction: row; justify-content: flex-start; gap: 0.75rem; min-height: 44px;
+    padding: 0 0.75rem; border-radius: 10px; font-size: 0.95rem;
+  }
+  .sidebar .nav-link[aria-current="page"] { background: var(--brand-soft); }
+  .sidebar .nav-link[aria-current="page"] .nav-label { text-decoration: none; }
+}
+.brand { display: flex; align-items: center; gap: 0.6rem; font-weight: 700; padding: 0.25rem 0.75rem 1rem; }
+.brand img { width: 28px; height: 28px; }
+.sidebar-foot { margin-top: auto; padding: 0.75rem; }
+.sidebar-foot .restaurant { font-weight: 600; }
+
+.page-head { display: flex; flex-wrap: wrap; gap: 0.75rem 1rem; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.page-head p { margin-top: 0.25rem; }
+.stack { display: grid; gap: 1rem; }
+.row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.grow { flex: 1 1 auto; }
+
+/* ---------- Components ---------- */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; box-shadow: var(--shadow); }
+.card > h2 { margin-bottom: 0.75rem; }
+.card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+.card-head h2 { margin: 0; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+  min-height: 44px; padding: 0 1rem; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--text); font: inherit; font-weight: 600; cursor: pointer; text-decoration: none;
+}
+.btn:hover { background: var(--surface-2); }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn-primary { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+.btn-primary:hover { filter: brightness(1.08); background: var(--brand); }
+.btn-danger { color: var(--loss-ink); border-color: var(--loss-ink); }
+.btn-small { min-height: 36px; padding: 0 0.75rem; font-size: 0.9rem; }
+.btn-link { background: none; border: 0; padding: 0; min-height: 0; color: var(--brand); text-decoration: underline; font: inherit; cursor: pointer; font-weight: 600; }
+
+label { display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 0.25rem; }
+.field { display: grid; gap: 0.25rem; }
+.hint { font-size: 0.85rem; color: var(--muted); }
+input, select {
+  width: 100%; min-height: 44px; padding: 0 0.75rem; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit;
+}
+input:focus-visible, select:focus-visible { outline-offset: 0; }
+.form-grid { display: grid; gap: 0.75rem; }
+@media (min-width: 640px) { .form-grid.cols-2 { grid-template-columns: 1fr 1fr; } .form-grid.cols-3 { grid-template-columns: 2fr 1fr 1fr; } }
+.error { background: var(--loss-bg); color: var(--loss-ink); border-radius: 10px; padding: 0.6rem 0.8rem; font-weight: 600; }
+.notice { background: var(--brand-soft); border-radius: 10px; padding: 0.75rem 0.9rem; }
+.notice.warn { background: var(--below-bg); color: var(--below-ink); }
+.notice .row { margin-top: 0.5rem; }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.15rem 0.6rem; border-radius: 999px;
+  font-size: 0.8rem; font-weight: 700; white-space: nowrap;
+}
+.badge.loss { background: var(--loss-bg); color: var(--loss-ink); }
+.badge.below { background: var(--below-bg); color: var(--below-ink); }
+.badge.watch { background: var(--watch-bg); color: var(--watch-ink); }
+.badge.good { background: var(--good-bg); color: var(--good-ink); }
+.badge.incomplete { background: var(--incomplete-bg); color: var(--incomplete-ink); }
+.tag { font-size: 0.75rem; font-weight: 700; padding: 0.1rem 0.45rem; border-radius: 6px; background: var(--surface-2); color: var(--muted); border: 1px dashed var(--muted); }
+
+.stats { display: grid; gap: 0.75rem; grid-template-columns: 1fr; }
+@media (min-width: 640px) { .stats { grid-template-columns: repeat(3, 1fr); } }
+.stat .value { font-size: 1.6rem; font-weight: 800; line-height: 1.15; }
+.stat .label { color: var(--muted); font-size: 0.875rem; }
+
+.list { display: grid; gap: 0; }
+.list-item { display: grid; gap: 0.5rem; padding: 0.9rem 0; border-top: 1px solid var(--line); }
+.list-item:first-child { border-top: 0; padding-top: 0; }
+.list-item:last-child { padding-bottom: 0; }
+.item-top { display: flex; flex-wrap: wrap; gap: 0.5rem 0.75rem; align-items: center; justify-content: space-between; }
+.item-title { font-weight: 700; }
+.price-move { font-size: 1.05rem; font-weight: 700; }
+.up { color: var(--loss-ink); }
+.down { color: var(--good-ink); }
+
+.dish-grid { display: grid; gap: 0.75rem; grid-template-columns: 1fr; }
+@media (min-width: 700px) { .dish-grid { grid-template-columns: 1fr 1fr; } }
+.dish-card { display: grid; gap: 0.5rem; text-decoration: none; color: inherit; }
+.dish-card:hover { border-color: var(--brand); }
+.dish-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; font-size: 0.875rem; }
+.dish-metrics dt { color: var(--muted); }
+.dish-metrics dd { margin: 0; font-weight: 700; }
+.dish-metrics div { min-width: 0; }
+
+.toolbar { display: grid; gap: 0.5rem; margin-bottom: 1rem; }
+@media (min-width: 700px) { .toolbar { grid-template-columns: 1fr 220px auto; } }
+
+/* Ingredient rows */
+.ing-row { display: grid; gap: 0.5rem; padding: 0.8rem 0; border-top: 1px solid var(--line); grid-template-columns: 1fr auto; align-items: center; }
+.ing-row:first-child { border-top: 0; }
+.ing-row .ing-name { font-weight: 700; }
+.ing-price { grid-column: 1 / -1; display: grid; grid-template-columns: auto 1fr; gap: 0.5rem; align-items: center; }
+.ing-price .unit { color: var(--muted); font-size: 0.9rem; white-space: nowrap; }
+.ing-actions { display: flex; gap: 0.25rem; }
+@media (min-width: 700px) {
+  .ing-row { grid-template-columns: minmax(150px, 1.2fr) minmax(190px, 1fr) minmax(130px, 0.8fr) auto; }
+  .ing-price { grid-column: auto; }
+}
+
+/* Dish editor */
+.line { display: grid; gap: 0.5rem; grid-template-columns: 1fr 110px; align-items: end; padding: 0.75rem 0; border-top: 1px solid var(--line); }
+.line:first-child { border-top: 0; }
+.line .line-foot { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+@media (min-width: 700px) {
+  .line { grid-template-columns: 2fr 130px 120px auto; }
+  .line .line-foot { display: contents; }
+}
+.line-cost { font-weight: 700; padding-bottom: 0.6rem; white-space: nowrap; }
+.summary { box-shadow: var(--shadow); }
+/* Sticky only on wide screens: on a phone it would cover the field being edited. */
+@media (min-width: 900px) { .summary { position: sticky; bottom: 1rem; z-index: 5; } }
+.summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-bottom: 0.5rem; }
+.summary-grid .v { font-weight: 800; font-size: 1.15rem; }
+
+/* Empty / loading states */
+.empty { text-align: center; padding: 2rem 1rem; display: grid; gap: 0.75rem; justify-items: center; }
+.empty p { max-width: 42ch; }
+.loading { padding: 2rem; text-align: center; color: var(--muted); }
+.steps { counter-reset: step; list-style: none; padding: 0; margin: 0; display: grid; gap: 0.75rem; text-align: left; }
+.steps li { counter-increment: step; display: grid; grid-template-columns: 2rem 1fr; gap: 0.5rem; align-items: start; }
+.steps li::before {
+  content: counter(step); display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%;
+  background: var(--brand); color: var(--brand-ink); font-weight: 800;
+}
+
+/* Auth */
+.auth { min-height: 100vh; display: grid; place-items: center; padding: 1rem; }
+.auth-card { width: 100%; max-width: 420px; display: grid; gap: 1rem; }
+.auth-card .brand { padding: 0; }
+.tabs { display: grid; grid-template-columns: 1fr 1fr; background: var(--surface-2); border-radius: 10px; padding: 3px; }
+.tabs button { min-height: 40px; border: 0; background: none; font: inherit; font-weight: 700; color: var(--muted); border-radius: 8px; cursor: pointer; }
+.tabs button[aria-selected="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+
+/* Toasts & dialog */
+.toasts { position: fixed; left: 0; right: 0; bottom: calc(var(--nav-h) + 0.75rem + env(safe-area-inset-bottom)); display: grid; gap: 0.5rem; justify-items: center; padding: 0 1rem; z-index: 50; pointer-events: none; }
+@media (min-width: 900px) { .toasts { bottom: 1.5rem; } }
+.toast {
+  pointer-events: auto; display: flex; align-items: center; gap: 0.75rem; max-width: 520px;
+  background: #1c211d; color: #fff; padding: 0.7rem 1rem; border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,0.25); font-weight: 600;
+}
+.toast.err { background: #9b1c1c; }
+.toast button { background: none; border: 0; color: #bbf7d0; font: inherit; font-weight: 800; text-decoration: underline; cursor: pointer; min-height: 32px; }
+dialog { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--text); padding: 1.25rem; width: min(480px, calc(100vw - 2rem)); }
+dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
+.spark { width: 100%; height: 90px; }
+.spark polyline { fill: none; stroke: var(--brand); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.spark circle { fill: var(--brand); }
+table.history { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 0.5rem; }
+table.history td, table.history th { padding: 0.35rem 0; border-top: 1px solid var(--line); text-align: left; }
+table.history td:last-child, table.history th:last-child { text-align: right; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .btn, .dish-card { transition: background 0.12s, border-color 0.12s, filter 0.12s; }
+}
+
+/* Bot trap: present for scripts, invisible to people and assistive tech */
+.hp { position: absolute; left: -10000px; top: auto; width: 1px; height: 1px; overflow: hidden; }
+.legal { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--line); max-width: 70ch; }
+.prose { max-width: 72ch; line-height: 1.65; padding-bottom: 3rem; }
+.prose h1 { margin: 1rem 0 0.5rem; }
+.prose h2 { margin: 1.5rem 0 0.4rem; }
+.prose ul { padding-left: 1.2rem; }
+.prose li { margin: 0.35rem 0; }
+
+.demo-bar { display: flex; flex-wrap: wrap; gap: 0.5rem 0.75rem; align-items: center; margin-bottom: 1rem; padding: 0.6rem 0.8rem; border: 1px dashed var(--muted); border-radius: 10px; background: var(--surface-2); }
+.demo-bar .tag { border-style: solid; color: var(--text); }
+textarea.csv { width: 100%; min-height: 220px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); font: 0.8rem/1.4 ui-monospace, Menlo, Consolas, monospace; padding: 0.6rem; }
+
+</style>
+<div id="app"><p class="boot" role="status">Loading Menu Margin…</p></div>
+<div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+<script>
+// Pure pricing maths. Shared by the server and the browser (served at /calc.js),
+// so the numbers on screen always match the numbers the API returns.
+
+const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+const round1 = (n) => Math.round((Number(n) + Number.EPSILON) * 10) / 10;
+
+/** Total cost of a dish: sum of quantity x ingredient price. */
+function dishCost(items, priceOf) {
+  let total = 0;
+  for (const it of items) total += Number(it.quantity) * Number(priceOf(it));
+  return round2(total);
+}
+
+/**
+ * Judge one dish against the owner's target food-cost %.
+ * Food-cost % = ingredient cost / selling price.
+ *
+ * status:
+ *   incomplete - no ingredients (or zero cost) so we cannot judge
+ *   loss       - ingredients cost as much as, or more than, the selling price
+ *   below      - food-cost % is above target (margin too thin)
+ *   watch      - within 3 points of the target
+ *   good       - comfortably at or under target
+ */
+function analyze({ sellPrice, cost, targetPct, itemCount = 1, step = 50 }) {
+  const sell = Number(sellPrice);
+  const c = Number(cost);
+  const target = Number(targetPct);
+  if (!(sell > 0)) {
+    return { cost: round2(c), foodCostPct: null, margin: null, status: 'incomplete', suggestedPrice: null, priceGap: 0 };
+  }
+  if (itemCount === 0 || !(c > 0)) {
+    return { cost: round2(c), foodCostPct: null, margin: null, status: 'incomplete', suggestedPrice: null, priceGap: 0 };
+  }
+  const foodCostPct = (c / sell) * 100;
+  let status;
+  if (c >= sell) status = 'loss';
+  else if (foodCostPct > target) status = 'below';
+  else if (foodCostPct > target - 3) status = 'watch';
+  else status = 'good';
+
+  // Price needed to hit the target, rounded UP to a price a cashier can actually charge.
+  const raw = target > 0 ? c / (target / 100) : sell;
+  const suggestedPrice = Math.ceil(raw / step - 1e-9) * step;
+  const priceGap = Math.max(0, suggestedPrice - sell);
+  return {
+    cost: round2(c),
+    foodCostPct: round1(foodCostPct),
+    margin: round2(sell - c),
+    status,
+    suggestedPrice,
+    priceGap,
+  };
+}
+
+/** Percentage change from old to new; null when there is no sensible baseline. */
+function pctChange(oldValue, newValue) {
+  const o = Number(oldValue);
+  const n = Number(newValue);
+  if (!(o > 0)) return null;
+  return round1(((n - o) / o) * 100);
+}
+
+const NEEDS_ACTION = new Set(['loss', 'below']);
+
+</script>
+<script>
+/* In-browser stand-in for the Menu Margin server, used only by the try-it demo build.
+   It answers the same /api/... calls as lib/app.js and uses the same maths (analyze, dishCost, pctChange),
+   but keeps everything in this browser (localStorage). No account, no network. */
+
+const DEMO_KEY = 'menu-margin-demo-v1';
+const DEMO_DAY = 86_400_000;
+const DEMO_UNITS = ['kg', 'g', 'litre', 'ml', 'piece', 'pack', 'bottle', 'cup', 'derica', 'bunch', 'tuber', 'crate', 'bag', 'tin'];
+const DEMO_STALE_DAYS = 14;
+const DEMO_MOVER_DAYS = 30;
+
+// Illustrative numbers only. They are NOT market prices.
+const DEMO_SAMPLE_INGREDIENTS = [
+  ['Rice (parboiled)', 'kg', 1800, 2300], ['Chicken', 'kg', 4200, 5200], ['Beef', 'kg', 6500, 7800],
+  ['Tomatoes', 'kg', 1200, 1900], ['Pepper (tatashe/rodo)', 'kg', 1500, 2600], ['Onions', 'kg', 900, 1000],
+  ['Vegetable oil', 'litre', 2800, 3300], ['Burger bun', 'piece', 250, 300], ['Cheese slice', 'piece', 180, 220],
+  ['Potatoes', 'kg', 1100, 1250],
+];
+const DEMO_SAMPLE_DISHES = [
+  ['Jollof Rice & Chicken', 5500, 120, { 'Rice (parboiled)': 0.15, Chicken: 0.2, Tomatoes: 0.15, 'Pepper (tatashe/rodo)': 0.08, Onions: 0.05, 'Vegetable oil': 0.03 }],
+  ['Fried Rice & Beef', 4000, 60, { 'Rice (parboiled)': 0.15, Beef: 0.15, Onions: 0.05, 'Vegetable oil': 0.04 }],
+  ['Beef Burger & Chips', 6000, 90, { 'Burger bun': 1, Beef: 0.12, 'Cheese slice': 1, Potatoes: 0.25, 'Vegetable oil': 0.05 }],
+  ['Chicken Pepper Soup', 4000, 40, { Chicken: 0.3, 'Pepper (tatashe/rodo)': 0.05, Onions: 0.05 }],
+  ['Special Beef Platter', 3500, 10, { Beef: 0.4, 'Rice (parboiled)': 0.1, Onions: 0.05, 'Vegetable oil': 0.05 }],
+  ['Chips', 1800, 70, { Potatoes: 0.3, 'Vegetable oil': 0.06 }],
+];
+
+class DemoError extends Error {
+  constructor(status, message) { super(message); this.status = status; }
+}
+const dBad = (m) => new DemoError(400, m);
+
+function dStr(v, label, { min = 1, max = 80 } = {}) {
+  if (typeof v !== 'string') throw dBad(`${label} is required.`);
+  const s = v.trim().replace(/\s+/g, ' ');
+  if (s.length < min) throw dBad(`${label} is required.`);
+  if (s.length > max) throw dBad(`${label} must be ${max} characters or fewer.`);
+  return s;
+}
+function dNum(v, label, { min = 0, max = 1e9, exclusiveMin = false } = {}) {
+  const n = typeof v === 'string' && v.trim() !== '' ? Number(v) : v;
+  if (typeof n !== 'number' || !Number.isFinite(n)) throw dBad(`${label} must be a number.`);
+  if (exclusiveMin ? n <= min : n < min) throw dBad(exclusiveMin ? `${label} must be greater than ${min}.` : `${label} must be at least ${min}.`);
+  if (n > max) throw dBad(`${label} is too large.`);
+  return n;
+}
+function dInt(v, label, o) {
+  const n = dNum(v, label, o);
+  if (!Number.isInteger(n)) throw dBad(`${label} must be a whole number.`);
+  return n;
+}
+
+let DB = null;
+
+function dFresh() {
+  return { restaurant: { name: 'Demo Kitchen', target_food_cost_pct: 35 }, ingredients: [], prices: [], dishes: [], items: [], seq: 1 };
+}
+function dSave() {
+  try { localStorage.setItem(DEMO_KEY, JSON.stringify({ v: 1, db: DB })); } catch { /* storage unavailable: demo still works, just not saved */ }
+}
+function dLoad() {
+  try {
+    const raw = localStorage.getItem(DEMO_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.v === 1 && parsed.db) return parsed.db;
+    }
+  } catch { /* fall through to a fresh demo */ }
+  const d = dFresh();
+  dSeed(d);
+  return d;
+}
+function dDb() {
+  if (!DB) { DB = dLoad(); dSave(); }
+  return DB;
+}
+function dReset() {
+  DB = dFresh();
+  dSeed(DB);
+  dSave();
+}
+
+function dSeed(db) {
+  const now = Date.now();
+  const then = new Date(now - 45 * DEMO_DAY).toISOString();
+  const nowIso = new Date(now).toISOString();
+  const ids = {};
+  for (const [name, unit, oldP, newP] of DEMO_SAMPLE_INGREDIENTS) {
+    if (db.ingredients.some((i) => i.name === name)) continue;
+    const id = db.seq++;
+    ids[name] = id;
+    db.ingredients.push({ id, name, unit, price: newP, price_checked_at: nowIso, is_sample: true });
+    db.prices.push({ ingredient_id: id, price: oldP, recorded_at: then }, { ingredient_id: id, price: newP, recorded_at: nowIso });
+  }
+  for (const [name, sell, units, recipe] of DEMO_SAMPLE_DISHES) {
+    if (db.dishes.some((d) => d.name === name)) continue;
+    const id = db.seq++;
+    db.dishes.push({ id, name, sell_price: sell, units_per_week: units, is_sample: true });
+    for (const [ing, qty] of Object.entries(recipe)) if (ids[ing]) db.items.push({ dish_id: id, ingredient_id: ids[ing], quantity: qty });
+  }
+}
+
+function dIngredients(db) {
+  const cutoff = new Date(Date.now() - DEMO_MOVER_DAYS * DEMO_DAY).toISOString();
+  return [...db.ingredients]
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+    .map((i) => {
+      const hist = db.prices.filter((p) => p.ingredient_id === i.id).sort((a, b) => (a.recorded_at < b.recorded_at ? -1 : a.recorded_at > b.recorded_at ? 1 : 0));
+      const older = hist.filter((p) => p.recorded_at <= cutoff);
+      const priceThen = older.length ? older[older.length - 1].price : hist.length ? hist[0].price : i.price;
+      return { ...i, price_then: priceThen, change_pct: pctChange(priceThen, i.price) };
+    });
+}
+
+function dDishes(db) {
+  const ings = dIngredients(db);
+  const byId = new Map(ings.map((i) => [i.id, i]));
+  return [...db.dishes]
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+    .map((d) => {
+      const list = db.items.filter((it) => it.dish_id === d.id);
+      const items = list.map((it) => {
+        const ing = byId.get(it.ingredient_id);
+        return { ingredient_id: it.ingredient_id, name: ing.name, unit: ing.unit, quantity: it.quantity, line_cost: round2(it.quantity * ing.price) };
+      });
+      const cost = dishCost(list, (it) => byId.get(it.ingredient_id).price);
+      const costThen = dishCost(list, (it) => byId.get(it.ingredient_id).price_then);
+      const a = analyze({ sellPrice: d.sell_price, cost, targetPct: db.restaurant.target_food_cost_pct, itemCount: list.length });
+      const weeklyGain = a.priceGap > 0 && d.units_per_week > 0 ? round2(a.priceGap * d.units_per_week) : 0;
+      return { id: d.id, name: d.name, sell_price: d.sell_price, units_per_week: d.units_per_week, is_sample: !!d.is_sample, items, cost_30d_ago: costThen, cost_change_pct: pctChange(costThen, cost), weekly_gain: weeklyGain, ...a };
+    });
+}
+
+function dInsights(db) {
+  const dishes = dDishes(db);
+  const ings = dIngredients(db);
+  const counts = { total: dishes.length, needs_action: 0, loss: 0, below: 0, watch: 0, good: 0, incomplete: 0 };
+  for (const d of dishes) { counts[d.status]++; if (NEEDS_ACTION.has(d.status)) counts.needs_action++; }
+  const topActions = dishes.filter((d) => NEEDS_ACTION.has(d.status)).sort((a, b) => b.weekly_gain - a.weekly_gain || b.priceGap - a.priceGap).slice(0, 5);
+  const estWeeklyGain = round2(dishes.filter((d) => NEEDS_ACTION.has(d.status)).reduce((s, d) => s + d.weekly_gain, 0));
+  const usedIn = new Map();
+  for (const it of db.items) {
+    if (!usedIn.has(it.ingredient_id)) usedIn.set(it.ingredient_id, new Set());
+    usedIn.get(it.ingredient_id).add(it.dish_id);
+  }
+  const movers = ings.filter((i) => i.change_pct !== null && Math.abs(i.change_pct) >= 5)
+    .sort((a, b) => Math.abs(b.change_pct) - Math.abs(a.change_pct)).slice(0, 5)
+    .map((i) => ({ id: i.id, name: i.name, unit: i.unit, price: i.price, price_then: i.price_then, change_pct: i.change_pct, dishes_affected: (usedIn.get(i.id) || new Set()).size }));
+  const staleCutoff = new Date(Date.now() - DEMO_STALE_DAYS * DEMO_DAY).toISOString();
+  const stale = ings.filter((i) => i.price_checked_at < staleCutoff);
+  return { counts, est_weekly_gain: estWeeklyGain, top_actions: topActions, movers, stale: { count: stale.length, names: stale.slice(0, 5).map((i) => i.name), days: DEMO_STALE_DAYS }, ingredient_count: ings.length, mover_days: DEMO_MOVER_DAYS };
+}
+
+function dParseItems(db, items) {
+  if (!Array.isArray(items)) throw dBad('Ingredients must be a list.');
+  if (items.length > 40) throw dBad('A dish can have at most 40 ingredients.');
+  const seen = new Set();
+  return items.map((it, i) => {
+    const id = dInt(it && it.ingredient_id, `Ingredient on line ${i + 1}`, { min: 1, max: 2 ** 53 });
+    if (seen.has(id)) throw dBad('Each ingredient can only be added once per dish.');
+    seen.add(id);
+    if (!db.ingredients.some((x) => x.id === id)) throw new DemoError(404, 'Ingredient not found.');
+    return { ingredient_id: id, quantity: dNum(it.quantity, `Quantity on line ${i + 1}`, { min: 0, max: 1e6, exclusiveMin: true }) };
+  });
+}
+const dSameName = (list, name, exceptId) => list.some((x) => x.id !== exceptId && x.name.toLowerCase() === name.toLowerCase());
+
+function dCsv(dishes) {
+  const esc = (v) => {
+    let s = v === null || v === undefined ? '' : String(v);
+    if (typeof v === 'string' && /^[=+\-@\t\r]/.test(s)) s = "'" + s;
+    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const head = ['Dish', 'Selling price', 'Ingredient cost', 'Food cost %', 'Margin per plate', 'Status', 'Suggested price', 'Sold per week'];
+  const rows = dishes.map((d) => [d.name, d.sell_price, d.cost, d.foodCostPct, d.margin, d.status, d.suggestedPrice, d.units_per_week]);
+  return [head, ...rows].map((r) => r.map(esc).join(',')).join('\r\n') + '\r\n';
+}
+
+/** Same contract as the real server routes. Returns the JSON body or throws DemoError. */
+function demoHandle(path, method, b) {
+  const db = dDb();
+  let m;
+  const me = () => ({ user: { id: 1, email: 'Demo mode · no login' }, restaurant: { id: 1, ...db.restaurant }, units: DEMO_UNITS });
+
+  if (path === '/api/me' && method === 'GET') return me();
+
+  if (path === '/api/restaurant' && method === 'PUT') {
+    const name = dStr(b.name, 'Restaurant name');
+    const target = dNum(b.target_food_cost_pct, 'Target food cost %', { min: 10, max: 90 });
+    db.restaurant = { name, target_food_cost_pct: target };
+    dSave();
+    return { name, target_food_cost_pct: target };
+  }
+
+  if (path === '/api/ingredients' && method === 'GET') return { ingredients: dIngredients(db) };
+  if (path === '/api/ingredients' && method === 'POST') {
+    const name = dStr(b.name, 'Ingredient name');
+    if (!DEMO_UNITS.includes(b.unit)) throw dBad('Choose a unit from the list.');
+    const price = dNum(b.price, 'Price', { min: 0, max: 1e9 });
+    if (dSameName(db.ingredients, name)) throw new DemoError(409, `You already have an ingredient called "${name}".`);
+    const now = new Date().toISOString();
+    const id = db.seq++;
+    db.ingredients.push({ id, name, unit: b.unit, price, price_checked_at: now, is_sample: false });
+    db.prices.push({ ingredient_id: id, price, recorded_at: now });
+    dSave();
+    return { ingredient: dIngredients(db).find((i) => i.id === id) };
+  }
+  if (path === '/api/ingredients/confirm-all' && method === 'POST') {
+    const now = new Date().toISOString();
+    for (const i of db.ingredients) i.price_checked_at = now;
+    dSave();
+    return { ok: true };
+  }
+  if ((m = /^\/api\/ingredients\/(\d+)\/history$/.exec(path)) && method === 'GET') {
+    const ing = db.ingredients.find((i) => i.id === Number(m[1]));
+    if (!ing) throw new DemoError(404, 'Ingredient not found.');
+    const history = db.prices.filter((p) => p.ingredient_id === ing.id).sort((a, b) => (a.recorded_at < b.recorded_at ? -1 : 1)).slice(-60).map((p) => ({ price: p.price, recorded_at: p.recorded_at }));
+    return { name: ing.name, unit: ing.unit, history };
+  }
+  if ((m = /^\/api\/ingredients\/(\d+)$/.exec(path))) {
+    const ing = db.ingredients.find((i) => i.id === Number(m[1]));
+    if (!ing) throw new DemoError(404, 'Ingredient not found.');
+    if (method === 'PUT') {
+      const name = b.name === undefined ? ing.name : dStr(b.name, 'Ingredient name');
+      const unit = b.unit === undefined ? ing.unit : b.unit;
+      if (!DEMO_UNITS.includes(unit)) throw dBad('Choose a unit from the list.');
+      const price = b.price === undefined ? ing.price : dNum(b.price, 'Price', { min: 0, max: 1e9 });
+      if (dSameName(db.ingredients, name, ing.id)) throw new DemoError(409, `You already have an ingredient called "${name}".`);
+      const now = new Date().toISOString();
+      if (price !== ing.price) db.prices.push({ ingredient_id: ing.id, price, recorded_at: now });
+      if (b.price !== undefined) ing.price_checked_at = now;
+      Object.assign(ing, { name, unit, price });
+      dSave();
+      return { ingredient: dIngredients(db).find((i) => i.id === ing.id) };
+    }
+    if (method === 'DELETE') {
+      const used = new Set(db.items.filter((it) => it.ingredient_id === ing.id).map((it) => it.dish_id)).size;
+      if (used > 0) throw new DemoError(409, `"${ing.name}" is used in ${used} dish${used === 1 ? '' : 'es'}. Remove it from those dishes first.`);
+      db.ingredients = db.ingredients.filter((i) => i.id !== ing.id);
+      db.prices = db.prices.filter((p) => p.ingredient_id !== ing.id);
+      dSave();
+      return { ok: true };
+    }
+  }
+
+  if (path === '/api/dishes' && method === 'GET') return { dishes: dDishes(db) };
+  if (path === '/api/dishes' && method === 'POST') {
+    const name = dStr(b.name, 'Dish name');
+    const sell = dNum(b.sell_price, 'Selling price', { min: 0, max: 1e8, exclusiveMin: true });
+    const units = b.units_per_week === undefined || b.units_per_week === '' ? 0 : dInt(b.units_per_week, 'Plates sold per week', { min: 0, max: 100000 });
+    const items = dParseItems(db, b.items ?? []);
+    if (dSameName(db.dishes, name)) throw new DemoError(409, `You already have a dish called "${name}".`);
+    const id = db.seq++;
+    db.dishes.push({ id, name, sell_price: sell, units_per_week: units, is_sample: false });
+    for (const it of items) db.items.push({ dish_id: id, ...it });
+    dSave();
+    return { dish: dDishes(db).find((d) => d.id === id) };
+  }
+  if ((m = /^\/api\/dishes\/(\d+)$/.exec(path))) {
+    const dish = db.dishes.find((d) => d.id === Number(m[1]));
+    if (!dish) throw new DemoError(404, 'Dish not found.');
+    if (method === 'GET') return { dish: dDishes(db).find((d) => d.id === dish.id) };
+    if (method === 'PUT') {
+      const name = b.name === undefined ? dish.name : dStr(b.name, 'Dish name');
+      const sell = b.sell_price === undefined ? dish.sell_price : dNum(b.sell_price, 'Selling price', { min: 0, max: 1e8, exclusiveMin: true });
+      const units = b.units_per_week === undefined ? dish.units_per_week : b.units_per_week === '' ? 0 : dInt(b.units_per_week, 'Plates sold per week', { min: 0, max: 100000 });
+      const items = b.items === undefined ? null : dParseItems(db, b.items);
+      if (dSameName(db.dishes, name, dish.id)) throw new DemoError(409, `You already have a dish called "${name}".`);
+      Object.assign(dish, { name, sell_price: sell, units_per_week: units });
+      if (items) {
+        db.items = db.items.filter((it) => it.dish_id !== dish.id);
+        for (const it of items) db.items.push({ dish_id: dish.id, ...it });
+      }
+      dSave();
+      return { dish: dDishes(db).find((d) => d.id === dish.id) };
+    }
+    if (method === 'DELETE') {
+      db.dishes = db.dishes.filter((d) => d.id !== dish.id);
+      db.items = db.items.filter((it) => it.dish_id !== dish.id);
+      dSave();
+      return { ok: true };
+    }
+  }
+
+  if (path === '/api/insights' && method === 'GET') return dInsights(db);
+  if (path === '/api/sample' && method === 'POST') {
+    const had = db.ingredients.some((i) => i.is_sample);
+    if (!had) dSeed(db);
+    dSave();
+    return { loaded: !had };
+  }
+  if (path === '/api/sample' && method === 'DELETE') {
+    const gone = new Set(db.dishes.filter((d) => d.is_sample).map((d) => d.id));
+    db.dishes = db.dishes.filter((d) => !gone.has(d.id));
+    db.items = db.items.filter((it) => !gone.has(it.dish_id));
+    const used = new Set(db.items.map((it) => it.ingredient_id));
+    const dropIds = new Set(db.ingredients.filter((i) => i.is_sample && !used.has(i.id)).map((i) => i.id));
+    db.ingredients = db.ingredients.filter((i) => !dropIds.has(i.id));
+    db.prices = db.prices.filter((p) => !dropIds.has(p.ingredient_id));
+    dSave();
+    return { ok: true };
+  }
+  throw new DemoError(404, 'Not found.');
+}
+
+async function demoApi(path, { method = 'GET', body } = {}) {
+  await Promise.resolve();
+  const out = demoHandle(path, method, body || {});
+  return JSON.parse(JSON.stringify(out));
+}
+const demoCsv = () => dCsv(dDishes(dDb()));
+
+</script>
+<script>
+
+const $app = document.getElementById('app');
+const $toasts = document.getElementById('toasts');
+const state = { me: null, units: [], main: null };
+
+const STATUS = {
+  loss: { label: 'Losing money', glyph: '✕', rank: 0 },
+  below: { label: 'Margin too thin', glyph: '▲', rank: 1 },
+  watch: { label: 'Watch', glyph: '●', rank: 2 },
+  good: { label: 'Healthy', glyph: '✓', rank: 3 },
+  incomplete: { label: 'Needs ingredients', glyph: '…', rank: 4 },
+};
+
+// ---------- tiny helpers ----------
+const moneyWhole = new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 });
+const moneyCents = new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const naira = (n) => (n === null || n === undefined ? '—' : Number.isInteger(n) ? moneyWhole.format(n) : moneyCents.format(n));
+const pct = (n) => (n === null || n === undefined ? '—' : `${n}%`);
+const signed = (n) => (n > 0 ? `+${n}%` : `${n}%`);
+const plural = (n, one, many = one + 's') => `${n} ${n === 1 ? one : many}`;
+const daysAgo = (iso) => Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+
+/** Build DOM safely: text is always inserted as text, never as HTML. */
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  const late = [];
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v === false || v === null || v === undefined) continue;
+    if (k === 'class') el.className = v;
+    else if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2), v);
+    else if (k === 'value' || k === 'checked' || k === 'selected') late.push([k, v]);
+    else el.setAttribute(k, v === true ? '' : String(v));
+  }
+  append(el, kids);
+  for (const [k, v] of late) el[k] = v;
+  return el;
+}
+function append(el, kids) {
+  for (const kid of kids.flat(Infinity)) {
+    if (kid === null || kid === undefined || kid === false) continue;
+    el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+  }
+}
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function svg(tag, attrs, ...kids) {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs || {})) el.setAttribute(k, v);
+  append(el, kids);
+  return el;
+}
+const ICONS = {
+  today: ['M3 10.5 12 3l9 7.5V21H3z'],
+  dishes: ['M4 6h16', 'M4 12h16', 'M4 18h10'],
+  ingredients: ['M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z', 'M7.5 7.5h.01'],
+  settings: ['M4 6h10', 'M18 6h2', 'M4 12h4', 'M12 12h8', 'M4 18h12', 'M20 18h0', 'M16 4v4', 'M8 10v4', 'M18 16v4'],
+};
+const icon = (name) =>
+  svg('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' },
+    ...ICONS[name].map((d) => svg('path', { d })));
+
+function toast(message, { kind = 'ok', action } = {}) {
+  const el = h('div', { class: `toast ${kind === 'err' ? 'err' : ''}` }, h('span', null, message));
+  if (action) el.append(h('button', { type: 'button', onclick: () => { el.remove(); action.fn(); } }, action.label));
+  while ($toasts.children.length >= 2) $toasts.firstChild.remove();
+  $toasts.append(el);
+  setTimeout(() => el.remove(), action ? 8000 : 4500);
+}
+
+async function api(path, opts) {
+  try {
+    return await demoApi(path, opts);
+  } catch (err) {
+    if (err instanceof DemoError) throw err;
+    throw new Error("Something went wrong in the demo. Try the Reset button in Settings.");
+  }
+}
+
+function statusBadge(status) {
+  const s = STATUS[status] || STATUS.incomplete;
+  return h('span', { class: `badge ${status}` }, h('span', { 'aria-hidden': 'true' }, s.glyph), s.label);
+}
+
+function openDialog(...content) {
+  const dialog = h('dialog', null, ...content);
+  document.body.append(dialog);
+  dialog.addEventListener('close', () => dialog.remove());
+  if (typeof dialog.showModal === 'function') dialog.showModal();
+  else dialog.setAttribute('open', '');
+  return { close: () => (typeof dialog.close === 'function' ? dialog.close() : dialog.remove()), el: dialog };
+}
+
+function setLoading() {
+  state.main.replaceChildren(h('p', { class: 'loading', role: 'status' }, 'Loading…'));
+}
+function showError(err, retry) {
+  state.main.replaceChildren(
+    h('div', { class: 'card empty' },
+      h('h2', null, 'We could not load this page'),
+      h('p', { role: 'alert' }, err.message),
+      h('button', { class: 'btn btn-primary', type: 'button', onclick: retry }, 'Try again'))
+  );
+}
+
+// ---------- auth ----------
+function renderAuth(mode = 'login', notice = '') {
+  state.main = null;
+  document.title = mode === 'login' ? 'Log in · Menu Margin' : 'Create account · Menu Margin';
+  const errBox = h('div', { class: 'error', role: 'alert', hidden: true });
+  const submit = h('button', { class: 'btn btn-primary', type: 'submit' }, mode === 'login' ? 'Log in' : 'Create my account');
+
+  const form = h('form', {
+    class: 'stack',
+    onsubmit: async (e) => {
+      e.preventDefault();
+      errBox.hidden = true;
+      submit.disabled = true;
+      const fd = new FormData(form);
+      try {
+        const data = await api(mode === 'login' ? '/api/login' : '/api/register', {
+          method: 'POST',
+          body: mode === 'login'
+            ? { email: fd.get('email'), password: fd.get('password') }
+            : { email: fd.get('email'), password: fd.get('password'), restaurantName: fd.get('restaurantName'), fax: fd.get('fax') },
+        });
+        state.me = data;
+        state.units = data.units;
+        go('#/');
+        startApp();
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.hidden = false;
+        submit.disabled = false;
+      }
+    },
+  },
+    mode === 'register' && h('div', { class: 'field' },
+      h('label', { for: 'restaurantName' }, 'Restaurant name'),
+      h('input', { id: 'restaurantName', name: 'restaurantName', required: true, maxlength: 80, autocomplete: 'organization' })),
+    mode === 'register' && h('div', { class: 'hp', 'aria-hidden': 'true' },
+      h('label', { for: 'fax' }, 'Leave this field empty'),
+      h('input', { id: 'fax', name: 'fax', tabindex: '-1', autocomplete: 'off' })),
+    h('div', { class: 'field' },
+      h('label', { for: 'email' }, 'Email'),
+      h('input', { id: 'email', name: 'email', type: 'email', required: true, autocomplete: 'email', inputmode: 'email' })),
+    h('div', { class: 'field' },
+      h('label', { for: 'password' }, 'Password'),
+      h('input', { id: 'password', name: 'password', type: 'password', required: true, minlength: mode === 'register' ? 8 : 1, autocomplete: mode === 'login' ? 'current-password' : 'new-password' }),
+      mode === 'register' && h('span', { class: 'hint' }, 'At least 8 characters. Avoid easy ones like “password”.')),
+    errBox,
+    submit
+  );
+
+  const tab = (m, text) => h('button', { type: 'button', role: 'tab', 'aria-selected': String(m === mode), onclick: () => renderAuth(m) }, text);
+
+  $app.replaceChildren(
+    h('main', { class: 'auth' },
+      h('div', { class: 'card auth-card' },
+        h('div', { class: 'brand' }, h('img', { src: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiMxNDUzMmQiLz48cGF0aCBkPSJNMTQgNDRsMTItMTQgOSA5IDE1LTE5IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PC9zdmc+Cg==", alt: '' }), h('span', null, 'Menu Margin')),
+        h('div', null,
+          h('h1', null, mode === 'login' ? 'Welcome back' : 'Know which dishes make money'),
+          h('p', { class: 'muted' }, mode === 'login' ? 'Log in to see your menu margins.' : 'Enter your ingredient prices once. Menu Margin recosts every dish and tells you what to reprice.')),
+        h('div', { class: 'tabs', role: 'tablist' }, tab('login', 'Log in'), tab('register', 'Create account')),
+        notice && h('div', { class: 'notice', role: 'status' }, notice),
+        form,
+        h('p', { class: 'small muted' }, mode === 'register' ? 'By creating an account you agree that we store the data you enter to run the service. ' : '', h('a', { href: '/privacy' }, 'Read the privacy notice'), '.')))
+  );
+}
+
+// ---------- shell & router ----------
+const NAV = [
+  ['#/', 'Today', 'today'],
+  ['#/dishes', 'Dishes', 'dishes'],
+  ['#/ingredients', 'Ingredients', 'ingredients'],
+  ['#/settings', 'Settings', 'settings'],
+];
+
+function startApp() {
+  state.main = h('main', { class: 'main', id: 'main', tabindex: '-1' });
+  const links = (cls) => NAV.map(([href, label, ic]) => h('a', { class: 'nav-link', href, 'data-nav': href }, icon(ic), h('span', { class: 'nav-label' }, label)));
+  $app.replaceChildren(
+    h('div', { class: 'shell' },
+      h('aside', { class: 'sidebar' },
+        h('div', { class: 'brand' }, h('img', { src: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiMxNDUzMmQiLz48cGF0aCBkPSJNMTQgNDRsMTItMTQgOSA5IDE1LTE5IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PC9zdmc+Cg==", alt: '' }), h('span', null, 'Menu Margin')),
+        h('nav', { 'aria-label': 'Main' }, ...links()),
+        h('div', { class: 'sidebar-foot small muted' }, h('div', { class: 'restaurant', id: 'side-restaurant' }, state.me.restaurant.name), h('div', null, state.me.user.email))),
+      state.main,
+      h('nav', { class: 'bottom-nav', 'aria-label': 'Main' }, ...links()))
+  );
+  route();
+}
+
+const ROUTES = [
+  [/^#\/?$/, () => viewToday(), 'Today'],
+  [/^#\/dishes$/, () => viewDishes(), 'Dishes'],
+  [/^#\/dishes\/new$/, () => viewDishEditor(null), 'New dish'],
+  [/^#\/dishes\/(\d+)$/, (m) => viewDishEditor(Number(m[1])), 'Edit dish'],
+  [/^#\/ingredients$/, () => viewIngredients(), 'Ingredients'],
+  [/^#\/settings$/, () => viewSettings(), 'Settings'],
+];
+
+let routeToken = 0;
+async function route() {
+  if (!state.me || !state.main) return;
+  const hash = CURRENT;
+  const token = ++routeToken;
+  const hit = ROUTES.find(([re]) => re.test(hash));
+  const section = '#/' + (hash.split('/')[1] || '');
+  for (const a of document.querySelectorAll('[data-nav]')) {
+    if (a.getAttribute('data-nav') === section || (section === '#/' && a.getAttribute('data-nav') === '#/')) a.setAttribute('aria-current', 'page');
+    else a.removeAttribute('aria-current');
+  }
+  if (!hit) {
+    state.main.replaceChildren(h('div', { class: 'card empty' }, h('h2', null, 'Page not found'), h('a', { class: 'btn btn-primary', href: '#/' }, 'Go to Today')));
+    return;
+  }
+  document.title = `${hit[2]} · Menu Margin`;
+  setLoading();
+  try {
+    const node = await hit[1](hash.match(hit[0]));
+    if (token !== routeToken) return; // user navigated away while loading
+    state.main.replaceChildren(demoBar(), node, legalFooter());
+    state.main.focus({ preventScroll: true });
+    window.scrollTo(0, 0);
+  } catch (err) {
+    if (token !== routeToken || err.status === 401) return;
+    showError(err, route);
+  }
+}
+let CURRENT = '#/';
+function go(hash) { CURRENT = hash; route(); }
+document.addEventListener('click', (e) => {
+  const a = e.target.closest && e.target.closest('a[href^="#/"]');
+  if (!a || e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;
+  e.preventDefault();
+  go(a.getAttribute('href'));
+});
+
+function legalFooter() {
+  return h('footer', { class: 'legal small muted' },
+    'Suggested prices and profit figures are calculations from the numbers you enter. They are not financial advice and do not guarantee sales or profit. ',
+    h('button', { class: 'btn-link', type: 'button', onclick: demoPrivacy }, 'About your data'), '.');
+}
+
+// ---------- Today ----------
+async function viewToday() {
+  const [ins, { dishes }] = await Promise.all([api('/api/insights'), api('/api/dishes')]);
+  const c = ins.counts;
+  const hasSample = dishes.some((d) => d.is_sample);
+  const wrap = h('div', { class: 'stack' });
+
+  wrap.append(h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Today'), h('p', { class: 'muted' }, state.me.restaurant.name))));
+
+  if (hasSample) wrap.append(sampleBanner());
+
+  if (ins.ingredient_count === 0 && c.total === 0) {
+    wrap.append(h('div', { class: 'card empty' },
+      h('h2', null, 'Let’s find the dishes that are costing you money'),
+      h('ol', { class: 'steps' },
+        h('li', null, h('div', null, h('strong', null, 'Add your ingredients'), h('p', { class: 'muted' }, 'Rice, chicken, oil… with what you pay today.'))),
+        h('li', null, h('div', null, h('strong', null, 'Add your dishes'), h('p', { class: 'muted' }, 'Selling price and how much of each ingredient goes on a plate.'))),
+        h('li', null, h('div', null, h('strong', null, 'See what to reprice'), h('p', { class: 'muted' }, 'Menu Margin tells you which dishes are too cheap and what price fixes it.')))),
+      h('div', { class: 'row' },
+        h('a', { class: 'btn btn-primary', href: '#/ingredients' }, 'Add my first ingredient'),
+        sampleButton('Look around with sample data'))));
+    return wrap;
+  }
+
+  if (c.total === 0) {
+    wrap.append(h('div', { class: 'card empty' },
+      h('h2', null, 'Now add your first dish'),
+      h('p', { class: 'muted' }, 'You have ingredients. Add a dish with its selling price and recipe to see its margin.'),
+      h('a', { class: 'btn btn-primary', href: '#/dishes/new' }, 'Add a dish')));
+    return wrap;
+  }
+
+  if (ins.stale.count > 0) {
+    wrap.append(h('div', { class: 'notice warn', role: 'status' },
+      h('strong', null, `${plural(ins.stale.count, 'ingredient price')} not checked in ${ins.stale.days}+ days`),
+      h('p', null, `${ins.stale.names.join(', ')}${ins.stale.count > ins.stale.names.length ? '…' : ''}. If prices at the market have moved, your costs below are out of date.`),
+      h('div', { class: 'row' },
+        h('a', { class: 'btn btn-small', href: '#/ingredients' }, 'Review prices'),
+        h('button', { class: 'btn btn-small', type: 'button', onclick: async () => {
+          try { await api('/api/ingredients/confirm-all', { method: 'POST', body: {} }); toast('Marked all prices as checked'); route(); }
+          catch (e) { toast(e.message, { kind: 'err' }); }
+        } }, 'They are all still correct'))));
+  }
+
+  wrap.append(h('div', { class: 'stats' },
+    h('div', { class: 'card stat' },
+      h('div', { class: 'value' }, `${c.needs_action} of ${c.total}`),
+      h('div', { class: 'label' }, c.needs_action === 1 ? 'dish needs a price fix' : 'dishes need a price fix')),
+    h('div', { class: 'card stat' },
+      h('div', { class: 'value' }, ins.est_weekly_gain > 0 ? `Up to ${naira(ins.est_weekly_gain)}` : '—'),
+      h('div', { class: 'label' }, ins.est_weekly_gain > 0
+        ? 'most extra profit per week, if customers keep buying at the new prices. Expect less if sales drop.'
+        : c.needs_action > 0 ? 'Add “plates sold per week” to your dishes to see the money at stake' : 'No price fixes needed right now')),
+    h('div', { class: 'card stat' },
+      h('div', { class: 'value' }, String(ins.movers.length)),
+      h('div', { class: 'label' }, `ingredient${ins.movers.length === 1 ? '' : 's'} moved 5%+ in ${ins.mover_days} days`))));
+
+  const actions = h('section', { class: 'card', 'aria-labelledby': 'fix-h' },
+    h('div', { class: 'card-head' }, h('h2', { id: 'fix-h' }, 'Fix these first'), c.needs_action > ins.top_actions.length && h('a', { href: '#/dishes' }, `See all ${c.needs_action}`)));
+  if (ins.top_actions.length === 0) {
+    actions.append(h('p', { class: 'muted' }, 'Every dish with a full recipe is at or near your target. Keep ingredient prices up to date to stay that way.'));
+  } else {
+    actions.append(h('div', { class: 'list' }, ins.top_actions.map((d) => actionRow(d))));
+  }
+  wrap.append(actions);
+
+  const movers = h('section', { class: 'card', 'aria-labelledby': 'mv-h' }, h('h2', { id: 'mv-h' }, 'Ingredient price moves'));
+  if (ins.movers.length === 0) {
+    movers.append(h('p', { class: 'muted' }, `No ingredient has changed by 5% or more in the last ${ins.mover_days} days.`));
+  } else {
+    movers.append(h('div', { class: 'list' }, ins.movers.map((m) =>
+      h('div', { class: 'list-item' },
+        h('div', { class: 'item-top' },
+          h('span', { class: 'item-title' }, m.name),
+          h('span', { class: `price-move num ${m.change_pct > 0 ? 'up' : 'down'}` }, signed(m.change_pct))),
+        h('p', { class: 'muted small num' }, `${naira(m.price_then)} → ${naira(m.price)} per ${m.unit} · used in ${plural(m.dishes_affected, 'dish', 'dishes')}`)))));
+  }
+  wrap.append(movers);
+  return wrap;
+}
+
+const bigJump = (d) => d.suggestedPrice && d.sell_price > 0 && (d.suggestedPrice - d.sell_price) / d.sell_price > 0.25;
+
+function actionRow(d) {
+  const biggest = [...d.items].sort((a, b) => b.line_cost - a.line_cost)[0];
+  return h('div', { class: 'list-item' },
+    h('div', { class: 'item-top' }, h('a', { class: 'item-title', href: `#/dishes/${d.id}` }, d.name), statusBadge(d.status)),
+    h('p', { class: 'num' },
+      'Selling at ', h('strong', null, naira(d.sell_price)), ' · suggested ', h('strong', null, naira(d.suggestedPrice)),
+      d.weekly_gain > 0 && h('span', { class: 'muted' }, ` (≈ ${naira(d.weekly_gain)}/week more)`)),
+    h('p', { class: 'muted small num' },
+      `Ingredients cost ${naira(d.cost)} = ${pct(d.foodCostPct)} of the price (your target is ${state.me.restaurant.target_food_cost_pct}%).`,
+      biggest && ` Biggest cost: ${biggest.name} (${naira(biggest.line_cost)}).`),
+    bigJump(d) && h('p', { class: 'small notice warn' }, `That is a ${Math.round(((d.suggestedPrice - d.sell_price) / d.sell_price) * 100)}% increase, which customers may not accept in one step. Consider a smaller portion or a cheaper ingredient as well, or raise the price in stages.`),
+    h('div', { class: 'row' },
+      h('button', { class: 'btn btn-primary btn-small', type: 'button', onclick: (e) => applyPrice(d, e.currentTarget) }, `Apply ${naira(d.suggestedPrice)}`),
+      h('a', { class: 'btn btn-small', href: `#/dishes/${d.id}` }, 'Open recipe')));
+}
+
+async function applyPrice(d, btn) {
+  btn.disabled = true;
+  try {
+    await api(`/api/dishes/${d.id}`, { method: 'PUT', body: { sell_price: d.suggestedPrice } });
+    toast(`${d.name} is now ${naira(d.suggestedPrice)}`, {
+      action: { label: 'Undo', fn: async () => {
+        try { await api(`/api/dishes/${d.id}`, { method: 'PUT', body: { sell_price: d.sell_price } }); toast(`Back to ${naira(d.sell_price)}`); route(); }
+        catch (e) { toast(e.message, { kind: 'err' }); }
+      } },
+    });
+    route();
+  } catch (e) {
+    toast(e.message, { kind: 'err' });
+    btn.disabled = false;
+  }
+}
+
+function sampleButton(label) {
+  return h('button', { class: 'btn', type: 'button', onclick: async (e) => {
+    e.currentTarget.disabled = true;
+    try { await api('/api/sample', { method: 'POST', body: {} }); toast('Sample data loaded'); route(); }
+    catch (err) { toast(err.message, { kind: 'err' }); e.currentTarget.disabled = false; }
+  } }, label);
+}
+function sampleBanner() {
+  return h('div', { class: 'notice', role: 'status' },
+    h('strong', null, 'You are looking at sample data.'),
+    h('p', null, 'These dishes and prices are made up to show how the app works. They are not market prices.'),
+    h('div', { class: 'row' },
+      h('button', { class: 'btn btn-small', type: 'button', onclick: removeSampleData }, 'Remove sample data'),
+      h('a', { class: 'btn btn-small', href: '#/ingredients' }, 'Add my real ingredients')));
+}
+async function removeSampleData() {
+  try { await api('/api/sample', { method: 'DELETE' }); toast('Sample data removed'); route(); }
+  catch (e) { toast(e.message, { kind: 'err' }); }
+}
+
+// ---------- Dishes ----------
+async function viewDishes() {
+  const { dishes } = await api('/api/dishes');
+  const wrap = h('div', { class: 'stack' });
+  wrap.append(h('div', { class: 'page-head' },
+    h('div', null, h('h1', null, 'Dishes'), h('p', { class: 'muted' }, 'Every dish, recosted with today’s ingredient prices.')),
+    h('a', { class: 'btn btn-primary', href: '#/dishes/new' }, 'Add dish')));
+  if (dishes.some((d) => d.is_sample)) wrap.append(sampleBanner());
+
+  if (dishes.length === 0) {
+    wrap.append(h('div', { class: 'card empty' },
+      h('h2', null, 'No dishes yet'),
+      h('p', { class: 'muted' }, 'Add a dish with its selling price and recipe to see whether it makes money.'),
+      h('div', { class: 'row' }, h('a', { class: 'btn btn-primary', href: '#/dishes/new' }, 'Add a dish'), sampleButton('Try sample data'))));
+    return wrap;
+  }
+
+  const search = h('input', { type: 'search', id: 'dish-search', placeholder: 'Search dishes', 'aria-label': 'Search dishes' });
+  const filter = h('select', { id: 'dish-filter', 'aria-label': 'Filter dishes' },
+    h('option', { value: 'all' }, 'All dishes'),
+    h('option', { value: 'action' }, 'Needs a price fix'),
+    h('option', { value: 'watch' }, 'Watch'),
+    h('option', { value: 'good' }, 'Healthy'),
+    h('option', { value: 'incomplete' }, 'Needs ingredients'));
+  const results = h('div', { class: 'dish-grid' });
+  const count = h('p', { class: 'muted small', role: 'status' });
+
+  const paint = () => {
+    const q = search.value.trim().toLowerCase();
+    const f = filter.value;
+    const shown = dishes
+      .filter((d) => d.name.toLowerCase().includes(q))
+      .filter((d) => f === 'all' || (f === 'action' ? NEEDS_ACTION.has(d.status) : d.status === f))
+      .sort((a, b) => STATUS[a.status].rank - STATUS[b.status].rank || a.name.localeCompare(b.name));
+    count.textContent = `${plural(shown.length, 'dish', 'dishes')}${shown.length !== dishes.length ? ` of ${dishes.length}` : ''}`;
+    if (shown.length === 0) {
+      results.replaceChildren(h('div', { class: 'card empty', style: null }, h('p', { class: 'muted' }, 'No dishes match. Try a different search or filter.')));
+      return;
+    }
+    results.replaceChildren(...shown.map(dishCard));
+  };
+  search.addEventListener('input', paint);
+  filter.addEventListener('change', paint);
+  wrap.append(h('div', { class: 'toolbar' }, search, filter, h('button', { class: 'btn', type: 'button', onclick: showCsv }, 'View CSV')), count, results);
+  paint();
+  return wrap;
+}
+
+function dishCard(d) {
+  return h('a', { class: 'card dish-card', href: `#/dishes/${d.id}` },
+    h('div', { class: 'item-top' }, h('span', { class: 'item-title' }, d.name, d.is_sample && ' ', d.is_sample && h('span', { class: 'tag' }, 'Sample')), statusBadge(d.status)),
+    h('dl', { class: 'dish-metrics num' },
+      h('div', null, h('dt', null, 'Price'), h('dd', null, naira(d.sell_price))),
+      h('div', null, h('dt', null, 'Ingredients'), h('dd', null, d.items.length ? naira(d.cost) : '—')),
+      h('div', null, h('dt', null, 'Food cost'), h('dd', null, pct(d.foodCostPct)))),
+    NEEDS_ACTION.has(d.status) && h('p', { class: 'small num' }, `Suggested price: `, h('strong', null, naira(d.suggestedPrice))),
+    d.cost_change_pct !== null && Math.abs(d.cost_change_pct) >= 5 && h('p', { class: 'muted small' }, `Cost ${d.cost_change_pct > 0 ? 'up' : 'down'} ${Math.abs(d.cost_change_pct)}% in 30 days`));
+}
+
+// ---------- Dish editor ----------
+async function viewDishEditor(id) {
+  const [{ ingredients }, existing] = await Promise.all([api('/api/ingredients'), id ? api(`/api/dishes/${id}`) : Promise.resolve(null)]);
+  const dish = existing && existing.dish;
+  const byId = new Map(ingredients.map((i) => [i.id, i]));
+  const lines = dish ? dish.items.map((it) => ({ ingredient_id: it.ingredient_id, quantity: String(it.quantity) })) : [{ ingredient_id: '', quantity: '' }];
+  const target = state.me.restaurant.target_food_cost_pct;
+
+  const errBox = h('div', { class: 'error', role: 'alert', hidden: true });
+  const nameIn = h('input', { id: 'dish-name', required: true, maxlength: 80, value: dish ? dish.name : '' });
+  const priceIn = h('input', { id: 'dish-price', type: 'number', inputmode: 'decimal', min: '0', step: 'any', required: true, value: dish ? dish.sell_price : '' });
+  const unitsIn = h('input', { id: 'dish-units', type: 'number', inputmode: 'numeric', min: '0', step: '1', value: dish && dish.units_per_week ? dish.units_per_week : '' });
+  const summary = h('section', { class: 'card summary', 'aria-label': 'Margin summary', 'aria-live': 'polite' });
+  const linesBox = h('div');
+
+  const currentCost = () => lines.reduce((s, l) => {
+    const ing = byId.get(Number(l.ingredient_id));
+    const q = Number(l.quantity);
+    return ing && q > 0 ? s + q * ing.price : s;
+  }, 0);
+
+  function paintSummary() {
+    const itemCount = lines.filter((l) => l.ingredient_id && Number(l.quantity) > 0).length;
+    const cost = currentCost();
+    const sell = Number(priceIn.value);
+    const a = analyze({ sellPrice: sell, cost, targetPct: target, itemCount });
+    if (a.status === 'incomplete') {
+      summary.replaceChildren(h('p', { class: 'muted' }, 'Add a selling price and at least one ingredient with a quantity to see this dish’s margin.'));
+      return;
+    }
+    summary.replaceChildren(
+      h('div', { class: 'summary-grid num' },
+        h('div', null, h('div', { class: 'hint' }, 'Ingredients'), h('div', { class: 'v' }, naira(a.cost))),
+        h('div', null, h('div', { class: 'hint' }, `Food cost (target ${target}%)`), h('div', { class: 'v' }, pct(a.foodCostPct))),
+        h('div', null, h('div', { class: 'hint' }, 'Profit per plate'), h('div', { class: 'v' }, naira(a.margin)))),
+      h('div', { class: 'row' },
+        statusBadge(a.status),
+        a.priceGap > 0 && h('span', { class: 'num' }, 'To hit your target, charge ', h('strong', null, naira(a.suggestedPrice))),
+        a.priceGap > 0 && h('button', { class: 'btn btn-small', type: 'button', onclick: () => { priceIn.value = a.suggestedPrice; paintSummary(); } }, 'Use this price')));
+  }
+
+  function lineEl(l, index) {
+    const unitLabel = h('span', { class: 'hint' });
+    const costLabel = h('span', { class: 'line-cost num' });
+    const refresh = () => {
+      const ing = byId.get(Number(l.ingredient_id));
+      unitLabel.textContent = ing ? `${ing.unit}` : '';
+      const q = Number(l.quantity);
+      costLabel.textContent = ing && q > 0 ? naira(q * ing.price) : '';
+    };
+    const select = h('select', { id: `line-ing-${index}`, 'aria-label': `Ingredient ${index + 1}`, onchange: (e) => { l.ingredient_id = e.target.value; refresh(); paintSummary(); } },
+      h('option', { value: '' }, 'Choose ingredient…'),
+      ingredients.map((i) => h('option', { value: i.id }, `${i.name} (${naira(i.price)}/${i.unit})`)));
+    select.value = l.ingredient_id === '' ? '' : String(l.ingredient_id);
+    const qty = h('input', { id: `line-qty-${index}`, type: 'number', inputmode: 'decimal', min: '0', step: 'any', 'aria-label': `Quantity ${index + 1}`, placeholder: 'e.g. 0.15', value: l.quantity,
+      oninput: (e) => { l.quantity = e.target.value; refresh(); paintSummary(); } });
+    refresh();
+    return h('div', { class: 'line' },
+      h('div', { class: 'field' }, h('label', { for: `line-ing-${index}` }, index === 0 ? 'Ingredient' : `Ingredient ${index + 1}`), select),
+      h('div', { class: 'field' }, h('label', { for: `line-qty-${index}` }, 'Per plate'), qty),
+      h('div', { class: 'line-foot' },
+        h('div', { class: 'row' }, unitLabel, costLabel),
+        h('button', { class: 'btn btn-small', type: 'button', 'aria-label': `Remove ingredient ${index + 1}`, onclick: () => { lines.splice(index, 1); paintLines(); paintSummary(); } }, 'Remove')));
+  }
+  function paintLines() {
+    if (lines.length === 0) lines.push({ ingredient_id: '', quantity: '' });
+    linesBox.replaceChildren(...lines.map(lineEl));
+  }
+
+  priceIn.addEventListener('input', paintSummary);
+
+  const saveBtn = h('button', { class: 'btn btn-primary', type: 'submit' }, dish ? 'Save changes' : 'Save dish');
+  const form = h('form', {
+    class: 'stack',
+    onsubmit: async (e) => {
+      e.preventDefault();
+      errBox.hidden = true;
+      const items = [];
+      for (const [i, l] of lines.entries()) {
+        const hasIng = l.ingredient_id !== '';
+        const hasQty = l.quantity !== '' && l.quantity !== null;
+        if (!hasIng && !hasQty) continue;
+        if (!hasIng || !(Number(l.quantity) > 0)) {
+          errBox.textContent = `Ingredient ${i + 1}: choose an ingredient and enter a quantity above 0, or remove the line.`;
+          errBox.hidden = false;
+          return;
+        }
+        items.push({ ingredient_id: Number(l.ingredient_id), quantity: Number(l.quantity) });
+      }
+      saveBtn.disabled = true;
+      const body = { name: nameIn.value, sell_price: priceIn.value, units_per_week: unitsIn.value, items };
+      try {
+        await api(dish ? `/api/dishes/${dish.id}` : '/api/dishes', { method: dish ? 'PUT' : 'POST', body });
+        toast(dish ? 'Dish updated' : 'Dish added');
+        go('#/dishes');
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.hidden = false;
+        saveBtn.disabled = false;
+      }
+    },
+  },
+    h('section', { class: 'card' },
+      h('h2', null, 'Dish details'),
+      h('div', { class: 'form-grid cols-3' },
+        h('div', { class: 'field' }, h('label', { for: 'dish-name' }, 'Dish name'), nameIn),
+        h('div', { class: 'field' }, h('label', { for: 'dish-price' }, 'Selling price (₦)'), priceIn),
+        h('div', { class: 'field' }, h('label', { for: 'dish-units' }, 'Plates sold per week'), unitsIn, h('span', { class: 'hint' }, 'Optional. Only used to estimate money at stake.')))),
+    h('section', { class: 'card' },
+      h('div', { class: 'card-head' }, h('h2', null, 'Recipe for one plate'), h('span', { class: 'hint' }, 'Use the ingredient’s own unit, e.g. 0.15 kg = 150 g')),
+      ingredients.length === 0
+        ? h('div', { class: 'notice' }, 'You have not added any ingredients yet. ', h('a', { href: '#/ingredients' }, 'Add ingredients first'), ', then come back to build this recipe.')
+        : [linesBox, h('div', { class: 'row' }, h('button', { class: 'btn', type: 'button', onclick: () => { lines.push({ ingredient_id: '', quantity: '' }); paintLines(); } }, 'Add another ingredient'))]),
+    errBox,
+    summary,
+    h('div', { class: 'row' },
+      saveBtn,
+      h('a', { class: 'btn', href: '#/dishes' }, 'Cancel'),
+      dish && h('button', { class: 'btn btn-danger', type: 'button', onclick: () => deleteDish(dish) }, 'Delete dish')));
+
+  paintLines();
+  paintSummary();
+  return h('div', { class: 'stack' },
+    h('div', { class: 'page-head' }, h('div', null, h('h1', null, dish ? dish.name : 'Add a dish'), dish && dish.is_sample && h('p', null, h('span', { class: 'tag' }, 'Sample data')))),
+    form);
+}
+
+function deleteDish(dish) {
+  const dlg = openDialog(
+    h('h2', null, `Delete “${dish.name}”?`),
+    h('p', { class: 'muted' }, 'This removes the dish and its recipe. Your ingredients are kept.'),
+    h('div', { class: 'row' },
+      h('button', { class: 'btn btn-danger', type: 'button', onclick: async () => {
+        try { await api(`/api/dishes/${dish.id}`, { method: 'DELETE' }); dlg.close(); toast('Dish deleted'); go('#/dishes'); }
+        catch (e) { dlg.close(); toast(e.message, { kind: 'err' }); }
+      } }, 'Delete'),
+      h('button', { class: 'btn', type: 'button', onclick: () => dlg.close() }, 'Keep it')));
+}
+
+// ---------- Ingredients ----------
+async function viewIngredients() {
+  const { ingredients } = await api('/api/ingredients');
+  let list = ingredients;
+  const wrap = h('div', { class: 'stack' });
+  const rows = h('div');
+  const count = h('p', { class: 'muted small', role: 'status' });
+  const search = h('input', { type: 'search', 'aria-label': 'Search ingredients', placeholder: 'Search ingredients' });
+
+  const addError = h('div', { class: 'error', role: 'alert', hidden: true });
+  const nameIn = h('input', { id: 'new-ing-name', required: true, maxlength: 80, autocomplete: 'off' });
+  const unitIn = h('select', { id: 'new-ing-unit' }, state.units.map((u) => h('option', { value: u }, u)));
+  const priceIn = h('input', { id: 'new-ing-price', type: 'number', inputmode: 'decimal', min: '0', step: 'any', required: true });
+  const addBtn = h('button', { class: 'btn btn-primary', type: 'submit' }, 'Add ingredient');
+  const addForm = h('form', {
+    class: 'form-grid cols-3',
+    onsubmit: async (e) => {
+      e.preventDefault();
+      addError.hidden = true;
+      addBtn.disabled = true;
+      try {
+        const { ingredient } = await api('/api/ingredients', { method: 'POST', body: { name: nameIn.value, unit: unitIn.value, price: priceIn.value } });
+        list = [...list, ingredient].sort((a, b) => a.name.localeCompare(b.name));
+        toast(`${ingredient.name} added`);
+        nameIn.value = ''; priceIn.value = '';
+        paint();
+        nameIn.focus();
+      } catch (err) {
+        addError.textContent = err.message;
+        addError.hidden = false;
+      }
+      addBtn.disabled = false;
+    },
+  },
+    h('div', { class: 'field' }, h('label', { for: 'new-ing-name' }, 'Ingredient'), nameIn),
+    h('div', { class: 'field' }, h('label', { for: 'new-ing-unit' }, 'Buy / measure by'), unitIn),
+    h('div', { class: 'field' }, h('label', { for: 'new-ing-price' }, 'Price per unit (₦)'), priceIn),
+    h('div', { class: 'row', style: null }, addBtn));
+
+  const stale = () => list.filter((i) => daysAgo(i.price_checked_at) >= 14).length;
+
+  function paint() {
+    const q = search.value.trim().toLowerCase();
+    const shown = list.filter((i) => i.name.toLowerCase().includes(q));
+    count.textContent = list.length === 0 ? '' : `${plural(shown.length, 'ingredient')}${shown.length !== list.length ? ` of ${list.length}` : ''}`;
+    if (list.length === 0) {
+      rows.replaceChildren(h('div', { class: 'empty' }, h('h2', null, 'No ingredients yet'), h('p', { class: 'muted' }, 'Add the ingredients you buy, with today’s price. Dishes are built from these.')));
+      return;
+    }
+    if (shown.length === 0) { rows.replaceChildren(h('p', { class: 'muted' }, 'No ingredients match your search.')); return; }
+    rows.replaceChildren(...shown.map(ingredientRow));
+  }
+
+  function ingredientRow(ing) {
+    const meta = h('div', { class: 'small muted num' });
+    const move = h('div', { class: 'small num' });
+    const refreshMeta = () => {
+      const age = daysAgo(ing.price_checked_at);
+      meta.textContent = age <= 0 ? 'Checked today' : `Checked ${plural(age, 'day')} ago`;
+      meta.classList.toggle('up', age >= 14);
+      if (ing.change_pct !== null && Math.abs(ing.change_pct) >= 1) {
+        move.textContent = `${signed(ing.change_pct)} in 30 days`;
+        move.className = `small num ${ing.change_pct > 0 ? 'up' : 'down'}`;
+      } else { move.textContent = 'No change in 30 days'; move.className = 'small num muted'; }
+    };
+    const input = h('input', { type: 'number', inputmode: 'decimal', min: '0', step: 'any', 'aria-label': `Price of ${ing.name} per ${ing.unit}`, value: ing.price });
+    input.addEventListener('change', async () => {
+      const v = input.value;
+      if (v === '' || !(Number(v) >= 0)) { toast('Enter a price of 0 or more.', { kind: 'err' }); input.value = ing.price; return; }
+      input.disabled = true;
+      try {
+        const { ingredient } = await api(`/api/ingredients/${ing.id}`, { method: 'PUT', body: { price: v } });
+        const changed = ingredient.price !== ing.price;
+        Object.assign(ing, ingredient);
+        input.value = ing.price;
+        refreshMeta();
+        toast(changed ? `${ing.name} is now ${naira(ing.price)}/${ing.unit}` : `${ing.name} price confirmed`);
+      } catch (err) { toast(err.message, { kind: 'err' }); input.value = ing.price; }
+      input.disabled = false;
+    });
+    refreshMeta();
+    return h('div', { class: 'ing-row' },
+      h('div', null, h('div', { class: 'ing-name' }, ing.name, ing.is_sample && ' ', ing.is_sample && h('span', { class: 'tag' }, 'Sample')), meta),
+      h('div', { class: 'ing-actions' },
+        h('button', { class: 'btn btn-small', type: 'button', onclick: () => showHistory(ing) }, 'History'),
+        h('button', { class: 'btn btn-small btn-danger', type: 'button', 'aria-label': `Delete ${ing.name}`, onclick: () => deleteIngredient(ing) }, 'Delete')),
+      h('div', { class: 'ing-price' }, h('span', { class: 'unit' }, `₦ per ${ing.unit}`), input),
+      move);
+  }
+
+  async function deleteIngredient(ing) {
+    const dlg = openDialog(
+      h('h2', null, `Delete “${ing.name}”?`),
+      h('p', { class: 'muted' }, 'You can only delete an ingredient that no dish uses.'),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn btn-danger', type: 'button', onclick: async () => {
+          try { await api(`/api/ingredients/${ing.id}`, { method: 'DELETE' }); list = list.filter((i) => i.id !== ing.id); dlg.close(); toast(`${ing.name} deleted`); paint(); }
+          catch (e) { dlg.close(); toast(e.message, { kind: 'err' }); }
+        } }, 'Delete'),
+        h('button', { class: 'btn', type: 'button', onclick: () => dlg.close() }, 'Cancel')));
+  }
+
+  search.addEventListener('input', paint);
+  wrap.append(
+    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Ingredients'), h('p', { class: 'muted' }, 'Keep these prices current. Every dish is recosted the moment you change one.'))),
+    h('section', { class: 'card' }, h('h2', null, 'Add an ingredient'), addForm, addError),
+    h('section', { class: 'card' },
+      h('div', { class: 'card-head' }, h('h2', null, 'Your ingredients'),
+        list.length > 0 && h('button', { class: 'btn btn-small', type: 'button', onclick: async () => {
+          try { await api('/api/ingredients/confirm-all', { method: 'POST', body: {} }); toast('Marked all prices as checked'); route(); }
+          catch (e) { toast(e.message, { kind: 'err' }); }
+        } }, 'All prices still correct')),
+      list.length > 0 && h('div', { class: 'stack' }, search, count),
+      rows));
+  paint();
+  return wrap;
+}
+
+async function showHistory(ing) {
+  const body = h('p', { class: 'loading' }, 'Loading…');
+  const dlg = openDialog(h('h2', null, `${ing.name} price history`), body, h('div', { class: 'row' }, h('button', { class: 'btn', type: 'button', onclick: () => dlg.close() }, 'Close')));
+  try {
+    const { history, unit } = await api(`/api/ingredients/${ing.id}/history`);
+    const parts = [];
+    if (history.length >= 2) {
+      const prices = history.map((p) => p.price);
+      const lo = Math.min(...prices), hi = Math.max(...prices), span = hi - lo || 1;
+      const pts = history.map((p, i) => [10 + (i / (history.length - 1)) * 280, 70 - ((p.price - lo) / span) * 60]);
+      parts.push(svg('svg', { class: 'spark', viewBox: '0 0 300 80', role: 'img', 'aria-label': `Price went from ${naira(prices[0])} to ${naira(prices[prices.length - 1])}` },
+        svg('polyline', { points: pts.map((p) => p.join(',')).join(' ') }),
+        svg('circle', { cx: pts[pts.length - 1][0], cy: pts[pts.length - 1][1], r: 4 })));
+    } else {
+      parts.push(h('p', { class: 'muted' }, 'Only one price recorded so far. Update the price when it changes and a trend will appear here.'));
+    }
+    parts.push(h('table', { class: 'history num' },
+      h('thead', null, h('tr', null, h('th', null, 'Date'), h('th', null, `Price per ${unit}`))),
+      h('tbody', null, [...history].reverse().map((p) => h('tr', null, h('td', null, new Date(p.recorded_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })), h('td', null, naira(p.price)))))));
+    body.replaceWith(h('div', null, ...parts));
+  } catch (e) { body.textContent = e.message; body.setAttribute('role', 'alert'); }
+}
+
+// ---------- Settings ----------
+async function viewSettings() {
+  const { dishes } = await api('/api/dishes');
+  const r = state.me.restaurant;
+  const errBox = h('div', { class: 'error', role: 'alert', hidden: true });
+  const nameIn = h('input', { id: 'set-name', required: true, maxlength: 80, value: r.name });
+  const targetIn = h('input', { id: 'set-target', type: 'number', inputmode: 'decimal', min: '10', max: '90', step: 'any', required: true, value: r.target_food_cost_pct });
+  const saveBtn = h('button', { class: 'btn btn-primary', type: 'submit' }, 'Save settings');
+  const form = h('form', {
+    class: 'stack',
+    onsubmit: async (e) => {
+      e.preventDefault();
+      errBox.hidden = true;
+      saveBtn.disabled = true;
+      try {
+        const saved = await api('/api/restaurant', { method: 'PUT', body: { name: nameIn.value, target_food_cost_pct: targetIn.value } });
+        Object.assign(state.me.restaurant, saved);
+        const side = document.getElementById('side-restaurant');
+        if (side) side.textContent = saved.name;
+        toast('Settings saved');
+      } catch (err) { errBox.textContent = err.message; errBox.hidden = false; }
+      saveBtn.disabled = false;
+    },
+  },
+    h('div', { class: 'form-grid cols-2' },
+      h('div', { class: 'field' }, h('label', { for: 'set-name' }, 'Restaurant name'), nameIn),
+      h('div', { class: 'field' }, h('label', { for: 'set-target' }, 'Target food cost (%)'), targetIn,
+        h('span', { class: 'hint' }, 'The share of a dish’s selling price you are willing to spend on ingredients. Lower means a bigger margin. If unsure, start at 35 and adjust after a week.'))),
+    errBox,
+    h('div', null, saveBtn));
+
+  const hasSample = dishes.some((d) => d.is_sample);
+  return h('div', { class: 'stack' },
+    h('div', { class: 'page-head' }, h('div', null, h('h1', null, 'Settings'), h('p', { class: 'muted' }, state.me.user.email))),
+    h('section', { class: 'card' }, h('h2', null, 'Your restaurant'), form),
+    h('section', { class: 'card' },
+      h('h2', null, 'Your data'),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn', type: 'button', onclick: showCsv }, 'View margins as CSV'),
+        hasSample ? h('button', { class: 'btn', type: 'button', onclick: async () => { await removeSampleData(); } }, 'Remove sample data') : sampleButton('Load sample data'))),
+    h('section', { class: 'card' },
+      h('h2', null, 'Plan & billing'),
+      h('p', { class: 'muted' }, 'You are using the local prototype. Paid subscriptions, cloud accounts and billing are not active yet.'),
+      h('div', { class: 'row', style: 'margin-top:0.75rem' },
+        h('a', { class: 'btn btn-primary', href: 'pricing.html' }, 'View Pro pricing'))),
+    h('section', { class: 'card' },
+      h('h2', null, 'Demo data'),
+      h('p', { class: 'muted' }, 'This demo has no login. Everything you change is saved only in this browser. Reset puts the example restaurant back as it was.'),
+      h('div', { class: 'row' }, h('button', { class: 'btn btn-danger', type: 'button', onclick: resetDemo }, 'Reset demo'))));
+}
+
+async function logout() {
+  try { await api('/api/logout', { method: 'POST', body: {} }); } catch { /* already logged out */ }
+  state.me = null;
+  go('#/');
+  renderAuth('login');
+}
+
+function confirmDeleteAccount() {
+  const err = h('div', { class: 'error', role: 'alert', hidden: true });
+  const pw = h('input', { id: 'del-pw', type: 'password', autocomplete: 'current-password', required: true });
+  const dlg = openDialog(
+    h('h2', null, 'Delete your account?'),
+    h('p', { class: 'muted' }, 'This permanently deletes your restaurant, ingredients, dishes and price history. It cannot be undone.'),
+    h('div', { class: 'field' }, h('label', { for: 'del-pw' }, 'Enter your password to confirm'), pw),
+    err,
+    h('div', { class: 'row' },
+      h('button', { class: 'btn btn-danger', type: 'button', onclick: async () => {
+        err.hidden = true;
+        try {
+          await api('/api/account', { method: 'DELETE', body: { password: pw.value } });
+          dlg.close();
+          state.me = null;
+          go('#/');
+          renderAuth('register', 'Your account and data were deleted.');
+        } catch (e) { err.textContent = e.message; err.hidden = false; }
+      } }, 'Delete everything'),
+      h('button', { class: 'btn', type: 'button', onclick: () => dlg.close() }, 'Cancel')));
+}
+
+// ---------- boot ----------
+(async function boot() {
+  try {
+    const me = await api('/api/me');
+    state.me = me;
+    state.units = me.units;
+    startApp();
+  } catch (err) {
+    if (err.status === 401) renderAuth('login');
+    else $app.replaceChildren(h('div', { class: 'auth' }, h('div', { class: 'card empty' }, h('h2', null, 'Cannot reach Menu Margin'), h('p', { role: 'alert' }, err.message), h('button', { class: 'btn btn-primary', onclick: () => location.reload() }, 'Try again'))));
+  }
+})();
+
+
+// ---------- demo-only helpers ----------
+function demoBar() {
+  return h('div', { class: 'demo-bar', role: 'note' },
+    h('span', { class: 'tag' }, 'DEMO'),
+    h('span', { class: 'small' }, 'Runs in your browser with example data. Changes stay on this device. The full app adds accounts and saves to a server.'));
+}
+function demoPrivacy() {
+  const dlg = openDialog(
+    h('h2', null, 'About your data'),
+    h('p', null, 'In this demo, nothing you type is sent anywhere. It is kept in your browser on this device and disappears if you clear site data or press Reset.'),
+    h('p', { class: 'muted small' }, 'The example restaurant, ingredients and prices are made up for demonstration and are not market prices.'),
+    h('div', { class: 'row' }, h('button', { class: 'btn', type: 'button', onclick: () => dlg.close() }, 'Close')));
+}
+async function resetDemo() {
+  dReset();
+  toast('Demo reset');
+  go('#/');
+}
+async function showCsv() {
+  const text = demoCsv();
+  const box = h('textarea', { class: 'csv', readonly: true, 'aria-label': 'Margins as CSV' });
+  box.value = text;
+  const note = h('p', { class: 'muted small', role: 'status' });
+  const dlg = openDialog(
+    h('h2', null, 'Margins as CSV'),
+    h('p', { class: 'muted' }, 'Copy this and paste it into a spreadsheet.'),
+    box,
+    note,
+    h('div', { class: 'row' },
+      h('button', { class: 'btn btn-primary', type: 'button', onclick: async () => {
+        try { await navigator.clipboard.writeText(text); note.textContent = 'Copied.'; }
+        catch { box.focus(); box.select(); note.textContent = 'Text selected. Copy it with your keyboard or menu.'; }
+      } }, 'Copy'),
+      h('button', { class: 'btn', type: 'button', onclick: () => dlg.close() }, 'Close')));
+}
+
+</script>
+
+<script>
+// Progressive Web App support. In the Android WebView build this is harmless.
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+}
+</script>
+</body></html>
